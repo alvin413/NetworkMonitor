@@ -35,7 +35,8 @@ def scan_network(interface, network):
     """Ejecuta arp-scan y devuelve una lista de dispositivos."""
     command = [
         "sudo",
-        "arp-scan",
+	"-n",
+        "/usr/bin/arp-scan",
         "--interface={}".format(interface),
         network
     ]
