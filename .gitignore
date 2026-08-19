@@ -1,0 +1,5 @@
+config.json
+devices.json
+logs/
+__pycache__/
+*.pyc
