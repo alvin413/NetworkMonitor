@@ -4,6 +4,8 @@ import json
 import os
 import re
 import subprocess
+import urllib.parse
+import urllib.request
 from datetime import datetime
 
 
@@ -22,6 +24,7 @@ DEVICES_FILE = os.path.join(
 
 def load_json(filename, default):
     """Carga un archivo JSON o devuelve un valor por defecto."""
+
     try:
         with open(filename, "r") as file_handle:
             return json.load(file_handle)
@@ -30,13 +33,20 @@ def load_json(filename, default):
         return default
 
     except ValueError:
-        print("ERROR: JSON invalido: {}".format(filename))
+        print(
+            "ERROR: JSON invalido: {}".format(
+                filename
+            )
+        )
+
         return default
 
 
 def save_json(filename, data):
     """Guarda datos en formato JSON."""
+
     with open(filename, "w") as file_handle:
+
         json.dump(
             data,
             file_handle,
@@ -59,13 +69,18 @@ def scan_network(interface, network):
     ]
 
     try:
+
         result = subprocess.check_output(
             command,
             stderr=subprocess.STDOUT
         )
 
     except subprocess.CalledProcessError as error:
-        print("ERROR ejecutando arp-scan:")
+
+        print(
+            "ERROR ejecutando arp-scan:"
+        )
+
         print(
             error.output.decode(
                 "utf-8",
@@ -180,6 +195,116 @@ def update_inventory(devices, inventory):
     return inventory, new_devices
 
 
+def send_telegram(config, message):
+    """Envía un mensaje a Telegram."""
+
+    telegram = config.get(
+        "telegram",
+        {}
+    )
+
+    bot_token = telegram.get(
+        "bot_token",
+        ""
+    )
+
+    chat_id = telegram.get(
+        "chat_id",
+        ""
+    )
+
+    if not bot_token or not chat_id:
+
+        print(
+            "Telegram no configurado."
+        )
+
+        return False
+
+    url = (
+        "https://api.telegram.org/bot{}/sendMessage"
+        .format(bot_token)
+    )
+
+    data = urllib.parse.urlencode({
+        "chat_id": chat_id,
+        "text": message
+    }).encode("utf-8")
+
+    request = urllib.request.Request(
+        url,
+        data=data
+    )
+
+    try:
+
+        response = urllib.request.urlopen(
+            request,
+            timeout=10
+        )
+
+        result = response.read().decode(
+            "utf-8"
+        )
+
+        telegram_result = json.loads(
+            result
+        )
+
+        if telegram_result.get(
+            "ok",
+            False
+        ):
+
+            return True
+
+        print(
+            "ERROR Telegram: {}".format(
+                result
+            )
+        )
+
+        return False
+
+    except Exception as error:
+
+        print(
+            "ERROR enviando Telegram: {}".format(
+                error
+            )
+        )
+
+        return False
+
+
+def notify_new_devices(config, new_devices):
+    """Envía una alerta por cada dispositivo nuevo."""
+
+    for device in new_devices:
+
+        message = (
+            "🚨 NUEVO DISPOSITIVO DETECTADO\n\n"
+            "IP: {}\n"
+            "MAC: {}\n"
+            "Hora: {}"
+        ).format(
+            device["ip"],
+            device["mac"],
+            datetime.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+        )
+
+        if send_telegram(
+            config,
+            message
+        ):
+
+            print(
+                "Alerta enviada a Telegram."
+            )
+
+
 def print_new_devices(new_devices):
     """Muestra los dispositivos nuevos."""
 
@@ -281,6 +406,15 @@ def main():
         new_devices
     )
 
+    if new_devices:
+
+        print("")
+
+        notify_new_devices(
+            config,
+            new_devices
+        )
+
     print("")
 
     print(
@@ -295,4 +429,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
