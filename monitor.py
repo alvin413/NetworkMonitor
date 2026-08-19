@@ -282,12 +282,23 @@ def notify_new_devices(config, new_devices):
 
     for device in new_devices:
 
+        name = device.get(
+            "name",
+            ""
+        )
+
+        if not name:
+
+            name = "DESCONOCIDO"
+
         message = (
             "🚨 NUEVO DISPOSITIVO DETECTADO\n\n"
+            "Nombre: {}\n"
             "IP: {}\n"
             "MAC: {}\n"
             "Hora: {}"
         ).format(
+            name,
             device["ip"],
             device["mac"],
             datetime.now().strftime(
@@ -323,8 +334,18 @@ def print_new_devices(new_devices):
 
     for device in new_devices:
 
+        name = device.get(
+            "name",
+            ""
+        )
+
+        if not name:
+
+            name = "DESCONOCIDO"
+
         print(
-            "IP: {} | MAC: {}".format(
+            "Nombre: {} | IP: {} | MAC: {}".format(
+                name,
                 device["ip"],
                 device["mac"]
             )
