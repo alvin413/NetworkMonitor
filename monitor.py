@@ -8,8 +8,16 @@ from datetime import datetime
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
-DEVICES_FILE = os.path.join(BASE_DIR, "devices.json")
+
+CONFIG_FILE = os.path.join(
+    BASE_DIR,
+    "config.json"
+)
+
+DEVICES_FILE = os.path.join(
+    BASE_DIR,
+    "devices.json"
+)
 
 
 def load_json(filename, default):
@@ -17,8 +25,10 @@ def load_json(filename, default):
     try:
         with open(filename, "r") as file_handle:
             return json.load(file_handle)
+
     except IOError:
         return default
+
     except ValueError:
         print("ERROR: JSON invalido: {}".format(filename))
         return default
@@ -27,15 +37,22 @@ def load_json(filename, default):
 def save_json(filename, data):
     """Guarda datos en formato JSON."""
     with open(filename, "w") as file_handle:
-        json.dump(data, file_handle, indent=4, sort_keys=True)
+        json.dump(
+            data,
+            file_handle,
+            indent=4,
+            sort_keys=True
+        )
+
         file_handle.write("\n")
 
 
 def scan_network(interface, network):
     """Ejecuta arp-scan y devuelve una lista de dispositivos."""
+
     command = [
         "sudo",
-	"-n",
+        "-n",
         "/usr/bin/arp-scan",
         "--interface={}".format(interface),
         network
@@ -46,12 +63,22 @@ def scan_network(interface, network):
             command,
             stderr=subprocess.STDOUT
         )
+
     except subprocess.CalledProcessError as error:
         print("ERROR ejecutando arp-scan:")
-        print(error.output.decode("utf-8", "ignore"))
+        print(
+            error.output.decode(
+                "utf-8",
+                "ignore"
+            )
+        )
+
         return []
 
-    output = result.decode("utf-8", "ignore")
+    output = result.decode(
+        "utf-8",
+        "ignore"
+    )
 
     devices = []
 
@@ -61,10 +88,15 @@ def scan_network(interface, network):
     )
 
     for line in output.splitlines():
-        match = pattern.match(line.strip())
+
+        match = pattern.match(
+            line.strip()
+        )
 
         if match:
+
             ip = match.group(1)
+
             mac = match.group(2).lower()
 
             devices.append({
@@ -76,14 +108,24 @@ def scan_network(interface, network):
 
 
 def update_inventory(devices, inventory):
-    """Actualiza el inventario conservando los nombres manuales."""
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    """
+    Actualiza el inventario y devuelve
+    los dispositivos nuevos.
+    """
+
+    now = datetime.now().strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+
+    new_devices = []
 
     for device in devices:
+
         mac = device["mac"]
         ip = device["ip"]
 
         if mac not in inventory:
+
             inventory[mac] = {
                 "ip": ip,
                 "name": "",
@@ -92,58 +134,164 @@ def update_inventory(devices, inventory):
                 "last_seen": now
             }
 
-            print("[NUEVO] {} - {}".format(ip, mac))
+            new_devices.append({
+                "mac": mac,
+                "ip": ip,
+                "name": ""
+            })
+
+            print(
+                "[NUEVO] {} - {}".format(
+                    ip,
+                    mac
+                )
+            )
 
         else:
+
             inventory[mac]["ip"] = ip
+
             inventory[mac]["last_seen"] = now
 
-            name = inventory[mac].get("name", "")
+            name = inventory[mac].get(
+                "name",
+                ""
+            )
 
             if name:
-                print("[VISTO] {} - {} ({})".format(
-                    ip,
-                    mac,
-                    name
-                ))
-            else:
-                print("[VISTO] {} - {}".format(ip, mac))
 
-    return inventory
+                print(
+                    "[VISTO] {} - {} ({})".format(
+                        ip,
+                        mac,
+                        name
+                    )
+                )
+
+            else:
+
+                print(
+                    "[VISTO] {} - {}".format(
+                        ip,
+                        mac
+                    )
+                )
+
+    return inventory, new_devices
+
+
+def print_new_devices(new_devices):
+    """Muestra los dispositivos nuevos."""
+
+    if not new_devices:
+
+        print(
+            "No se detectaron dispositivos nuevos."
+        )
+
+        return
+
+    print("")
+    print("========================================")
+    print(" NUEVOS DISPOSITIVOS")
+    print("========================================")
+
+    for device in new_devices:
+
+        print(
+            "IP: {} | MAC: {}".format(
+                device["ip"],
+                device["mac"]
+            )
+        )
 
 
 def main():
+
     print("========================================")
     print(" NetworkMonitor")
     print("========================================")
 
-    config = load_json(CONFIG_FILE, {})
+    config = load_json(
+        CONFIG_FILE,
+        {}
+    )
 
-    network = config.get("network", "192.168.0.0/24")
-    interface = config.get("interface", "enp3s0")
+    network = config.get(
+        "network",
+        "192.168.0.0/24"
+    )
 
-    print("Interfaz : {}".format(interface))
-    print("Red      : {}".format(network))
+    interface = config.get(
+        "interface",
+        "enp3s0"
+    )
+
+    print(
+        "Interfaz : {}".format(
+            interface
+        )
+    )
+
+    print(
+        "Red      : {}".format(
+            network
+        )
+    )
+
     print("")
 
-    inventory = load_json(DEVICES_FILE, {})
+    inventory = load_json(
+        DEVICES_FILE,
+        {}
+    )
 
-    devices = scan_network(interface, network)
+    devices = scan_network(
+        interface,
+        network
+    )
 
     if not devices:
-        print("No se encontraron dispositivos.")
+
+        print(
+            "No se encontraron dispositivos."
+        )
+
         return
 
-    print("{} dispositivos encontrados.".format(len(devices)))
+    print(
+        "{} dispositivos encontrados.".format(
+            len(devices)
+        )
+    )
+
     print("")
 
-    inventory = update_inventory(devices, inventory)
+    inventory, new_devices = update_inventory(
+        devices,
+        inventory
+    )
 
-    save_json(DEVICES_FILE, inventory)
+    save_json(
+        DEVICES_FILE,
+        inventory
+    )
+
+    print_new_devices(
+        new_devices
+    )
 
     print("")
-    print("Inventario actualizado.")
-    print("Dispositivos registrados: {}".format(len(inventory)))
+
+    print(
+        "Inventario actualizado."
+    )
+
+    print(
+        "Dispositivos registrados: {}".format(
+            len(inventory)
+        )
+    )
 
 
 if __name__ == "__main__":
